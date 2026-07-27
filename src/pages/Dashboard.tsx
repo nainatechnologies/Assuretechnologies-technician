@@ -1,0 +1,447 @@
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  FiUser,
+  FiInbox,
+  FiTool,
+  FiClock,
+  FiCheckCircle,
+  FiHome,
+  FiBriefcase,
+  FiLogOut,
+  FiX,
+  FiCamera,
+  FiMapPin,
+  FiPhone
+} from 'react-icons/fi';
+import './Dashboard.css';
+
+type JobStatus = 'assigned' | 'inProgress' | 'awaiting' | 'completed';
+
+type Job = {
+  id: string;
+  title: string;
+  date: string;
+  status: JobStatus;
+  user: {
+    name: string;
+    mobile: string;
+  };
+  location: {
+    address: string;
+    lat: number;
+    lng: number;
+  };
+};
+
+const initialJobs: Job[] = [
+  { 
+    id: 'SR202607247190', 
+    title: 'agricture', 
+    date: '2026-07-24 | 2 PM - 4 PM', 
+    status: 'assigned',
+    user: { name: 'Sai Kumar', mobile: '+91 9876543210' },
+    location: { address: 'Flat 101, ABC Apt, Hyderabad, Telangana - 500001', lat: 17.432054, lng: 78.374383 }
+  },
+  { 
+    id: 'SR202607247191', 
+    title: 'network', 
+    date: 'Started at: 2026-07-14 16:37:41', 
+    status: 'inProgress',
+    user: { name: 'Priya Sharma', mobile: '+91 9123456789' },
+    location: { address: 'H.No 45, Gachibowli, Hyderabad, Telangana - 500032', lat: 17.4401, lng: 78.3489 }
+  },
+  { 
+    id: 'SR202607247192', 
+    title: 'network', 
+    date: 'Started at: 2026-07-24 11:53:01', 
+    status: 'inProgress',
+    user: { name: 'Rahul Reddy', mobile: '+91 9988776655' },
+    location: { address: 'Plot 12, Jubilee Hills, Hyderabad, Telangana - 500033', lat: 17.4326, lng: 78.4071 }
+  }
+];
+
+export default function Dashboard() {
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<JobStatus>('assigned');
+  const [jobs, setJobs] = useState<Job[]>(initialJobs);
+
+  // Modals state
+  const [showStartModal, setShowStartModal] = useState(false);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [startWorkPhotos, setStartWorkPhotos] = useState<string[]>([]);
+
+  const [showCompleteModal, setShowCompleteModal] = useState(false);
+  const [workDescription, setWorkDescription] = useState('');
+  const [completeWorkPhotos, setCompleteWorkPhotos] = useState<string[]>([]);
+
+  const handleStartWorkClick = (jobId: string) => {
+    setSelectedJobId(jobId);
+    setStartWorkPhotos([]);
+    setShowStartModal(true);
+  };
+
+  const confirmStartWork = () => {
+    if (selectedJobId && startWorkPhotos.length >= 1) {
+      setJobs(jobs.map(job => {
+        if (job.id === selectedJobId) {
+          const now = new Date();
+          return {
+            ...job,
+            status: 'inProgress',
+            date: `Started at: ${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`
+          };
+        }
+        return job;
+      }));
+      setShowStartModal(false);
+      setSelectedJobId(null);
+      setStartWorkPhotos([]);
+      setActiveTab('inProgress'); // Automatically switch to "Work In Progress"
+    }
+  };
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const filesArray = Array.from(e.target.files);
+      const remainingSlots = 3 - startWorkPhotos.length;
+      const filesToProcess = filesArray.slice(0, remainingSlots);
+
+      const newPhotos = filesToProcess.map(file => URL.createObjectURL(file));
+      setStartWorkPhotos(prev => [...prev, ...newPhotos]);
+    }
+  };
+
+  const removePhoto = (index: number) => {
+    setStartWorkPhotos(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleCompleteWorkClick = (jobId: string) => {
+    setSelectedJobId(jobId);
+    setWorkDescription('');
+    setCompleteWorkPhotos([]);
+    setShowCompleteModal(true);
+  };
+
+  const submitCompleteWork = () => {
+    if (selectedJobId && completeWorkPhotos.length >= 1) {
+      setJobs(jobs.map(job => {
+        if (job.id === selectedJobId) {
+          return { ...job, status: 'awaiting' };
+        }
+        return job;
+      }));
+      setShowCompleteModal(false);
+      setSelectedJobId(null);
+      setWorkDescription('');
+      setCompleteWorkPhotos([]);
+      setActiveTab('awaiting'); // Switch to awaiting approval
+    }
+  };
+
+  const handleCompletePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const filesArray = Array.from(e.target.files);
+      const remainingSlots = 3 - completeWorkPhotos.length;
+      const filesToProcess = filesArray.slice(0, remainingSlots);
+
+      const newPhotos = filesToProcess.map(file => URL.createObjectURL(file));
+      setCompleteWorkPhotos(prev => [...prev, ...newPhotos]);
+    }
+  };
+
+  const removeCompletePhoto = (index: number) => {
+    setCompleteWorkPhotos(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const renderJobs = () => {
+    const filteredJobs = jobs.filter(job => job.status === activeTab);
+
+    if (filteredJobs.length === 0) {
+      const messages = {
+        assigned: 'No assigned jobs',
+        inProgress: 'No jobs in progress',
+        awaiting: 'No pending approvals',
+        completed: 'No completed jobs'
+      };
+      return <div className="empty-state">{messages[activeTab]}</div>;
+    }
+
+    return filteredJobs.map((job) => (
+      <div key={job.id} className="job-card">
+        <div className="job-card-header">
+          <h3 className="job-title">{job.title}</h3>
+          {job.status === 'assigned' && <span className="job-id">{job.id}</span>}
+        </div>
+        <div className="job-details">
+          <p className="job-date">{job.date}</p>
+          
+          <div className="job-customer-section">
+            <div className="job-customer-item">
+              <FiUser className="customer-icon" />
+              <span>{job.user.name}</span>
+            </div>
+            <div className="job-customer-item">
+              <FiPhone className="customer-icon" />
+              <a href={`tel:${job.user.mobile}`} className="contact-link">{job.user.mobile}</a>
+            </div>
+          </div>
+
+          <div className="job-location-section">
+            <FiMapPin className="location-icon" />
+            <div className="location-content">
+              <p className="address-text">{job.location.address}</p>
+              <a 
+                href={`https://www.google.com/maps?q=${job.location.lat},${job.location.lng}`} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="directions-link"
+              >
+                Get Directions
+              </a>
+            </div>
+          </div>
+        </div>
+        <div className="job-actions">
+          {job.status === 'assigned' && (
+            <button className="btn-action btn-start-work" onClick={() => handleStartWorkClick(job.id)}>Start Work</button>
+          )}
+          {job.status === 'inProgress' && (
+            <button className="btn-action btn-complete-work" onClick={() => handleCompleteWorkClick(job.id)}>Complete Work</button>
+          )}
+        </div>
+      </div>
+    ));
+  };
+
+  const getJobCount = (status: JobStatus) => jobs.filter(job => job.status === status).length;
+
+  return (
+    <div className="dashboard-container">
+      {/* Top Header */}
+      <header className="dashboard-header">
+        <h1>Technician Dashboard</h1>
+        <button className="profile-btn">
+          <FiUser size={24} />
+        </button>
+      </header>
+
+      {/* Modals */}
+      {showStartModal && (
+        <div className="modal-overlay">
+          <div className="modal-content start-modal">
+            <div className="modal-icon-circle">
+              <span className="question-mark">?</span>
+            </div>
+            <h2>Start this service?</h2>
+
+            <div className="photo-upload-section">
+              <p className="upload-instruction">Please upload 1-3 photos to start work.</p>
+
+              <div className="photo-previews">
+                {startWorkPhotos.map((photo, index) => (
+                  <div key={index} className="photo-thumbnail">
+                    <img src={photo} alt={`Upload preview ${index + 1}`} />
+                    <button className="remove-photo-btn" onClick={() => removePhoto(index)}>
+                      <FiX size={14} />
+                    </button>
+                  </div>
+                ))}
+                {startWorkPhotos.length < 3 && (
+                  <label className="photo-upload-label">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handlePhotoUpload}
+                      className="hidden-file-input"
+                    />
+                    <div className="upload-placeholder">
+                      <FiCamera size={24} />
+                      <span>Add Photo</span>
+                    </div>
+                  </label>
+                )}
+              </div>
+            </div>
+
+            <div className="modal-actions-center">
+              <button
+                className="btn-modal btn-yes"
+                onClick={confirmStartWork}
+                disabled={startWorkPhotos.length === 0}
+              >
+                Yes
+              </button>
+              <button className="btn-modal btn-cancel" onClick={() => setShowStartModal(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Complete Work Modal */}
+      {showCompleteModal && (
+        <div className="modal-overlay">
+          <div className="modal-content complete-modal">
+            <div className="complete-modal-header">
+              <h2>Complete Work</h2>
+              <button className="close-btn" onClick={() => setShowCompleteModal(false)}>
+                <FiX size={20} />
+              </button>
+            </div>
+
+            <div className="complete-modal-body">
+              <textarea
+                placeholder="Work description"
+                value={workDescription}
+                onChange={(e) => setWorkDescription(e.target.value)}
+                className="work-description-input"
+                rows={4}
+              ></textarea>
+
+              <div className="photo-upload-section">
+                <p className="upload-instruction">Please upload 1-3 completion photos.</p>
+
+                <div className="photo-previews">
+                  {completeWorkPhotos.map((photo, index) => (
+                    <div key={index} className="photo-thumbnail">
+                      <img src={photo} alt={`Complete preview ${index + 1}`} />
+                      <button className="remove-photo-btn" onClick={() => removeCompletePhoto(index)}>
+                        <FiX size={14} />
+                      </button>
+                    </div>
+                  ))}
+                  {completeWorkPhotos.length < 3 && (
+                    <label className="photo-upload-label">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handleCompletePhotoUpload}
+                        className="hidden-file-input"
+                      />
+                      <div className="upload-placeholder">
+                        <FiCamera size={24} />
+                        <span>Add Photo</span>
+                      </div>
+                    </label>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="complete-modal-footer">
+              <button className="btn-modal btn-cancel" onClick={() => setShowCompleteModal(false)}>Cancel</button>
+              <button
+                className="btn-modal btn-submit"
+                onClick={submitCompleteWork}
+                disabled={completeWorkPhotos.length === 0}
+              >
+                Submit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content Area */}
+      <main className="dashboard-main">
+        {/* Summary Cards */}
+        <div className="summary-cards">
+          <div
+            className={`summary-card ${activeTab === 'assigned' ? 'active' : ''}`}
+            onClick={() => setActiveTab('assigned')}
+          >
+            <div className="icon-wrapper blue">
+              <FiInbox size={20} />
+            </div>
+            <div className="summary-info">
+              <h3>Assigned Jobs</h3>
+              <p>{getJobCount('assigned')} pending</p>
+            </div>
+          </div>
+
+          <div
+            className={`summary-card ${activeTab === 'inProgress' ? 'active' : ''}`}
+            onClick={() => setActiveTab('inProgress')}
+          >
+            <div className="icon-wrapper yellow">
+              <FiTool size={20} />
+            </div>
+            <div className="summary-info">
+              <h3>Work In Progress</h3>
+              <p>{getJobCount('inProgress')} active</p>
+            </div>
+          </div>
+
+          <div
+            className={`summary-card ${activeTab === 'awaiting' ? 'active' : ''}`}
+            onClick={() => setActiveTab('awaiting')}
+          >
+            <div className="icon-wrapper cyan">
+              <FiClock size={20} />
+            </div>
+            <div className="summary-info">
+              <h3>Awaiting Approval</h3>
+              <p>{getJobCount('awaiting')} waiting</p>
+            </div>
+          </div>
+
+          <div
+            className={`summary-card ${activeTab === 'completed' ? 'active' : ''}`}
+            onClick={() => setActiveTab('completed')}
+          >
+            <div className="icon-wrapper green">
+              <FiCheckCircle size={20} />
+            </div>
+            <div className="summary-info">
+              <h3>Completed Jobs</h3>
+              <p>{getJobCount('completed')} done</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Job List */}
+        <div className="job-list">
+          {renderJobs()}
+        </div>
+      </main>
+
+      {/* Bottom Navigation */}
+      <nav className="bottom-nav">
+        <button
+          className={`nav-item ${activeTab === 'assigned' ? 'active' : ''}`}
+          onClick={() => setActiveTab('assigned')}
+        >
+          <FiHome size={24} />
+          <span>Home</span>
+        </button>
+        <button
+          className={`nav-item ${activeTab === 'inProgress' ? 'active' : ''}`}
+          onClick={() => setActiveTab('inProgress')}
+        >
+          <FiTool size={24} />
+          <span>In Progress</span>
+        </button>
+        <button
+          className={`nav-item ${activeTab === 'completed' ? 'active' : ''}`}
+          onClick={() => setActiveTab('completed')}
+        >
+          <FiBriefcase size={24} />
+          <span>Jobs</span>
+        </button>
+        {/* <button
+          className={`nav-item ${activeTab === 'inProgress' ? 'active' : ''}`}
+          onClick={() => setActiveTab('inProgress')}
+        >
+          <FiTool size={24} />
+          <span>In Progress</span>
+        </button> */}
+        <button className="nav-item" onClick={() => navigate('/')}>
+          <FiLogOut size={24} />
+          <span>Logout</span>
+        </button>
+      </nav>
+    </div>
+  );
+}
