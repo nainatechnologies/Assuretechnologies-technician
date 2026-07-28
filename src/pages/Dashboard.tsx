@@ -18,6 +18,13 @@ import './Dashboard.css';
 
 type JobStatus = 'assigned' | 'inProgress' | 'awaiting' | 'completed';
 
+export type ProgressUpdate = {
+  id: string;
+  date: string;
+  description: string;
+  photos: string[];
+};
+
 type Job = {
   id: string;
   title: string;
@@ -32,6 +39,7 @@ type Job = {
     lat: number;
     lng: number;
   };
+  progressUpdates?: ProgressUpdate[];
 };
 
 const initialJobs: Job[] = [
@@ -49,7 +57,15 @@ const initialJobs: Job[] = [
     date: 'Started at: 2026-07-14 16:37:41', 
     status: 'inProgress',
     user: { name: 'Priya Sharma', mobile: '+91 9123456789' },
-    location: { address: 'H.No 45, Gachibowli, Hyderabad, Telangana - 500032', lat: 17.4401, lng: 78.3489 }
+    location: { address: 'H.No 45, Gachibowli, Hyderabad, Telangana - 500032', lat: 17.4401, lng: 78.3489 },
+    progressUpdates: [
+      {
+        id: 'PRG1',
+        date: '2026-07-15 10:00:00',
+        description: 'Installed the main router, testing signal strength across rooms.',
+        photos: ['https://placehold.co/150x150/e2e8f0/64748b?text=Progress+1'] // Added mock photo
+      }
+    ]
   },
   { 
     id: 'SR202607247192', 
@@ -70,14 +86,21 @@ export default function Dashboard() {
   const [showStartModal, setShowStartModal] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [startWorkPhotos, setStartWorkPhotos] = useState<string[]>([]);
+  const [startWorkDescription, setStartWorkDescription] = useState('');
 
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [workDescription, setWorkDescription] = useState('');
   const [completeWorkPhotos, setCompleteWorkPhotos] = useState<string[]>([]);
 
+  // Daily Progress state
+  const [showProgressModal, setShowProgressModal] = useState(false);
+  const [progressDescription, setProgressDescription] = useState('');
+  const [progressPhotos, setProgressPhotos] = useState<string[]>([]);
+
   const handleStartWorkClick = (jobId: string) => {
     setSelectedJobId(jobId);
     setStartWorkPhotos([]);
+    setStartWorkDescription('');
     setShowStartModal(true);
   };
 
@@ -97,6 +120,7 @@ export default function Dashboard() {
       setShowStartModal(false);
       setSelectedJobId(null);
       setStartWorkPhotos([]);
+      setStartWorkDescription('');
       setActiveTab('inProgress'); // Automatically switch to "Work In Progress"
     }
   };
@@ -154,6 +178,54 @@ export default function Dashboard() {
     setCompleteWorkPhotos(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handleAddProgressClick = (jobId: string) => {
+    setSelectedJobId(jobId);
+    setProgressDescription('');
+    setProgressPhotos([]);
+    setShowProgressModal(true);
+  };
+
+  const submitProgressUpdate = () => {
+    if (selectedJobId && progressDescription && progressPhotos.length >= 1) {
+      setJobs(jobs.map(job => {
+        if (job.id === selectedJobId) {
+          const now = new Date();
+          const newProgress: ProgressUpdate = {
+            id: `PRG_${Date.now()}`,
+            date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`,
+            description: progressDescription,
+            photos: progressPhotos
+          };
+          return {
+            ...job,
+            progressUpdates: [...(job.progressUpdates || []), newProgress]
+          };
+        }
+        return job;
+      }));
+      setShowProgressModal(false);
+      setSelectedJobId(null);
+      setProgressDescription('');
+      setProgressPhotos([]);
+      // Job stays in progress
+    }
+  };
+
+  const handleProgressPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const filesArray = Array.from(e.target.files);
+      const remainingSlots = 3 - progressPhotos.length;
+      const filesToProcess = filesArray.slice(0, remainingSlots);
+
+      const newPhotos = filesToProcess.map(file => URL.createObjectURL(file));
+      setProgressPhotos(prev => [...prev, ...newPhotos]);
+    }
+  };
+
+  const removeProgressPhoto = (index: number) => {
+    setProgressPhotos(prev => prev.filter((_, i) => i !== index));
+  };
+
   const renderJobs = () => {
     const filteredJobs = jobs.filter(job => job.status === activeTab);
 
@@ -207,7 +279,10 @@ export default function Dashboard() {
             <button className="btn-action btn-start-work" onClick={() => handleStartWorkClick(job.id)}>Start Work</button>
           )}
           {job.status === 'inProgress' && (
-            <button className="btn-action btn-complete-work" onClick={() => handleCompleteWorkClick(job.id)}>Complete Work</button>
+            <>
+              <button className="btn-action btn-add-progress" onClick={() => handleAddProgressClick(job.id)}>Add Daily Progress</button>
+              <button className="btn-action btn-complete-work" onClick={() => handleCompleteWorkClick(job.id)}>Complete Work</button>
+            </>
           )}
         </div>
       </div>
@@ -229,51 +304,131 @@ export default function Dashboard() {
       {/* Modals */}
       {showStartModal && (
         <div className="modal-overlay">
-          <div className="modal-content start-modal">
-            <div className="modal-icon-circle">
-              <span className="question-mark">?</span>
+          <div className="modal-content complete-modal">
+            <div className="complete-modal-header">
+              <h2>Start Work</h2>
+              <button className="close-btn" onClick={() => setShowStartModal(false)}>
+                <FiX size={20} />
+              </button>
             </div>
-            <h2>Start this service?</h2>
 
-            <div className="photo-upload-section">
-              <p className="upload-instruction">Please upload 1-3 photos to start work.</p>
+            <div className="complete-modal-body">
+              <textarea
+                className="work-description-input"
+                placeholder="Initial observations (e.g. Arrived on site, checking connections...)"
+                value={startWorkDescription}
+                onChange={(e) => setStartWorkDescription(e.target.value)}
+                rows={4}
+              />
 
-              <div className="photo-previews">
-                {startWorkPhotos.map((photo, index) => (
-                  <div key={index} className="photo-thumbnail">
-                    <img src={photo} alt={`Upload preview ${index + 1}`} />
-                    <button className="remove-photo-btn" onClick={() => removePhoto(index)}>
-                      <FiX size={14} />
-                    </button>
-                  </div>
-                ))}
-                {startWorkPhotos.length < 3 && (
-                  <label className="photo-upload-label">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={handlePhotoUpload}
-                      className="hidden-file-input"
-                    />
-                    <div className="upload-placeholder">
-                      <FiCamera size={24} />
-                      <span>Add Photo</span>
+              <div className="photo-upload-section" style={{ marginTop: '20px' }}>
+                <p className="upload-instruction" style={{ textAlign: 'center', marginBottom: '15px' }}>
+                  Please upload 1-3 photos to start work.
+                </p>
+
+                <div className="photo-previews" style={{ justifyContent: 'center' }}>
+                  {startWorkPhotos.map((photo, index) => (
+                    <div key={index} className="photo-thumbnail">
+                      <img src={photo} alt={`Upload preview ${index + 1}`} />
+                      <button className="remove-photo-btn" onClick={() => removePhoto(index)}>
+                        <FiX size={14} />
+                      </button>
                     </div>
-                  </label>
-                )}
+                  ))}
+                  {startWorkPhotos.length < 3 && (
+                    <label className="photo-upload-label">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handlePhotoUpload}
+                        className="hidden-file-input"
+                      />
+                      <div className="upload-placeholder">
+                        <FiCamera size={24} />
+                        <span>Add Photo</span>
+                      </div>
+                    </label>
+                  )}
+                </div>
               </div>
             </div>
 
-            <div className="modal-actions-center">
+            <div className="complete-modal-footer">
+              <button className="btn-modal btn-cancel" onClick={() => setShowStartModal(false)}>Cancel</button>
               <button
-                className="btn-modal btn-yes"
+                className="btn-modal btn-submit"
                 onClick={confirmStartWork}
                 disabled={startWorkPhotos.length === 0}
               >
-                Yes
+                Submit
               </button>
-              <button className="btn-modal btn-cancel" onClick={() => setShowStartModal(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Progress Modal */}
+      {showProgressModal && (
+        <div className="modal-overlay">
+          <div className="modal-content complete-modal">
+            <div className="complete-modal-header">
+              <h2>Add Daily Progress</h2>
+              <button className="close-btn" onClick={() => setShowProgressModal(false)}>
+                <FiX size={20} />
+              </button>
+            </div>
+
+            <div className="complete-modal-body">
+              <div className="form-group">
+                <label>Progress Description</label>
+                <textarea 
+                  placeholder="Describe what work was completed today..."
+                  rows={4}
+                  value={progressDescription}
+                  onChange={(e) => setProgressDescription(e.target.value)}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Upload Progress Photos (Max 3)</label>
+                <div className="photo-previews">
+                  {progressPhotos.map((photo, index) => (
+                    <div key={index} className="photo-thumbnail">
+                      <img src={photo} alt={`Upload preview ${index + 1}`} />
+                      <button className="remove-photo-btn" onClick={() => removeProgressPhoto(index)}>
+                        <FiX size={14} />
+                      </button>
+                    </div>
+                  ))}
+                  {progressPhotos.length < 3 && (
+                    <label className="photo-upload-label">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handleProgressPhotoUpload}
+                        className="hidden-file-input"
+                      />
+                      <div className="upload-placeholder">
+                        <FiCamera size={24} />
+                        <span>Add Photo</span>
+                      </div>
+                    </label>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="complete-modal-footer">
+              <button className="btn-modal btn-cancel" onClick={() => setShowProgressModal(false)}>Cancel</button>
+              <button 
+                className="btn-modal btn-submit"
+                onClick={submitProgressUpdate}
+                disabled={!progressDescription || progressPhotos.length === 0}
+              >
+                Submit Progress
+              </button>
             </div>
           </div>
         </div>

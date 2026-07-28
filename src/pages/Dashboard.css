@@ -252,20 +252,30 @@
 }
 
 .btn-start-work {
-  background-color: #ffc107;
-  color: #000;
+  background-color: #3b82f6;
+  color: white;
 }
 
 .btn-start-work:hover {
-  background-color: #e0a800;
+  background-color: #2563eb;
+}
+
+.btn-add-progress {
+  background-color: #f59e0b; /* amber-500 */
+  color: white;
+}
+
+.btn-add-progress:hover {
+  background-color: #d97706; /* amber-600 */
 }
 
 .btn-complete-work {
-  background-color: #198754;
+  background-color: #10b981;
+  color: white;
 }
 
 .btn-complete-work:hover {
-  background-color: #157347;
+  background-color: #059669;
 }
 
 /* Modal Styles */
