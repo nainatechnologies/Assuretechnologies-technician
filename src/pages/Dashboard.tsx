@@ -49,7 +49,15 @@ const initialJobs: Job[] = [
     date: '2026-07-24 | 2 PM - 4 PM', 
     status: 'assigned',
     user: { name: 'Sai Kumar', mobile: '+91 9876543210' },
-    location: { address: 'Flat 101, ABC Apt, Hyderabad, Telangana - 500001', lat: 17.432054, lng: 78.374383 }
+    location: { address: 'Flat 101, ABC Apt, Hyderabad, Telangana - 500001', lat: 17.432054, lng: 78.374383 },
+    progressUpdates: [
+      {
+        id: 'PRG_A1',
+        date: '2026-07-23 11:30:00',
+        description: 'Checked the soil quality and discussed the initial fertilizer plan with the owner.',
+        photos: []
+      }
+    ]
   },
   { 
     id: 'SR202607247191', 
@@ -96,6 +104,10 @@ export default function Dashboard() {
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [progressDescription, setProgressDescription] = useState('');
   const [progressPhotos, setProgressPhotos] = useState<string[]>([]);
+
+  // Previous Progress state
+  const [showPreviousProgressModal, setShowPreviousProgressModal] = useState(false);
+  const [selectedProgressUpdates, setSelectedProgressUpdates] = useState<ProgressUpdate[]>([]);
 
   const handleStartWorkClick = (jobId: string) => {
     setSelectedJobId(jobId);
@@ -207,8 +219,19 @@ export default function Dashboard() {
       setSelectedJobId(null);
       setProgressDescription('');
       setProgressPhotos([]);
-      // Job stays in progress
     }
+  };
+
+  const submitProgress = () => {
+    alert(`Progress added for job ${selectedJobId}`);
+    setShowProgressModal(false);
+    setProgressDescription('');
+    setProgressPhotos([]);
+  };
+
+  const handleViewPreviousProgress = (updates: ProgressUpdate[]) => {
+    setSelectedProgressUpdates(updates);
+    setShowPreviousProgressModal(true);
   };
 
   const handleProgressPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -275,6 +298,14 @@ export default function Dashboard() {
           </div>
         </div>
         <div className="job-actions">
+          {(job.status === 'assigned' || job.status === 'inProgress') && job.progressUpdates && job.progressUpdates.length > 0 && (
+            <button 
+              className="btn-action btn-previous-progress" 
+              onClick={() => handleViewPreviousProgress(job.progressUpdates!)}
+            >
+              Previous Progress
+            </button>
+          )}
           {job.status === 'assigned' && (
             <button className="btn-action btn-start-work" onClick={() => handleStartWorkClick(job.id)}>Start Work</button>
           )}
@@ -494,6 +525,44 @@ export default function Dashboard() {
               >
                 Submit
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Previous Progress Modal */}
+      {showPreviousProgressModal && (
+        <div className="modal-overlay" onClick={() => setShowPreviousProgressModal(false)}>
+          <div className="modal-content complete-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="complete-modal-header">
+              <h2>Previous Progress</h2>
+              <button className="close-btn" onClick={() => setShowPreviousProgressModal(false)}>
+                <FiX size={24} />
+              </button>
+            </div>
+            <div className="complete-modal-body previous-progress-body">
+              {selectedProgressUpdates.length > 0 ? (
+                <div className="progress-timeline">
+                  {selectedProgressUpdates.map(update => (
+                    <div key={update.id} className="progress-timeline-item">
+                      <div className="progress-timeline-date">{update.date}</div>
+                      <div className="progress-timeline-desc">{update.description}</div>
+                      {update.photos && update.photos.length > 0 && (
+                        <div className="progress-timeline-photos">
+                          {update.photos.map((photo, index) => (
+                            <img key={index} src={photo} alt={`Progress ${index + 1}`} className="progress-photo-thumb" />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p>No previous progress found.</p>
+              )}
+            </div>
+            <div className="complete-modal-footer">
+              <button className="btn-modal btn-cancel" onClick={() => setShowPreviousProgressModal(false)}>Close</button>
             </div>
           </div>
         </div>
