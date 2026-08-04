@@ -382,18 +382,23 @@
   padding: 16px;
 }
 
-.complete-modal-body textarea {
+.complete-modal-body textarea,
+.complete-modal-body .work-description-input {
   width: 100%;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
   padding: 12px;
   font-family: inherit;
   font-size: 0.95rem;
-  resize: vertical;
   box-sizing: border-box;
 }
 
-.complete-modal-body textarea:focus {
+.complete-modal-body textarea {
+  resize: vertical;
+}
+
+.complete-modal-body textarea:focus,
+.complete-modal-body .work-description-input:focus {
   outline: none;
   border-color: #198754;
 }

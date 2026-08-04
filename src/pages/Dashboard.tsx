@@ -108,6 +108,10 @@ export default function Dashboard() {
   // Previous Progress state
   const [showPreviousProgressModal, setShowPreviousProgressModal] = useState(false);
   const [selectedProgressUpdates, setSelectedProgressUpdates] = useState<ProgressUpdate[]>([]);
+  
+  const [showExtraItemsModal, setShowExtraItemsModal] = useState(false);
+  const [extraItemDesc, setExtraItemDesc] = useState('');
+  const [extraItemQty, setExtraItemQty] = useState('');
 
   const handleStartWorkClick = (jobId: string) => {
     setSelectedJobId(jobId);
@@ -152,8 +156,8 @@ export default function Dashboard() {
     setStartWorkPhotos(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleCompleteWorkClick = (jobId: string) => {
-    setSelectedJobId(jobId);
+  const handleCompleteWorkClick = (id: string) => {
+    setSelectedJobId(id);
     setWorkDescription('');
     setCompleteWorkPhotos([]);
     setShowCompleteModal(true);
@@ -190,11 +194,16 @@ export default function Dashboard() {
     setCompleteWorkPhotos(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleAddProgressClick = (jobId: string) => {
-    setSelectedJobId(jobId);
+  const handleAddProgressClick = (id: string) => {
+    setSelectedJobId(id);
     setProgressDescription('');
     setProgressPhotos([]);
     setShowProgressModal(true);
+  };
+
+  const handleAddExtraItemsClick = (id: string) => {
+    setSelectedJobId(id);
+    setShowExtraItemsModal(true);
   };
 
   const submitProgressUpdate = () => {
@@ -227,6 +236,15 @@ export default function Dashboard() {
     setShowProgressModal(false);
     setProgressDescription('');
     setProgressPhotos([]);
+  };
+
+  const submitExtraItems = () => {
+    if (extraItemDesc.trim() && extraItemQty.trim()) {
+      alert(`Extra items requested for job ${selectedJobId}`);
+      setShowExtraItemsModal(false);
+      setExtraItemDesc('');
+      setExtraItemQty('');
+    }
   };
 
   const handleViewPreviousProgress = (updates: ProgressUpdate[]) => {
@@ -311,6 +329,7 @@ export default function Dashboard() {
           )}
           {job.status === 'inProgress' && (
             <>
+              <button className="btn-action btn-add-progress" style={{ backgroundColor: '#f59e0b', color: 'white', borderColor: '#f59e0b' }} onClick={() => handleAddExtraItemsClick(job.id)}>Add Extra Items</button>
               <button className="btn-action btn-add-progress" onClick={() => handleAddProgressClick(job.id)}>Add Daily Progress</button>
               <button className="btn-action btn-complete-work" onClick={() => handleCompleteWorkClick(job.id)}>Complete Work</button>
             </>
@@ -393,6 +412,53 @@ export default function Dashboard() {
                 disabled={startWorkPhotos.length === 0}
               >
                 Submit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Extra Items Modal */}
+      {showExtraItemsModal && (
+        <div className="modal-overlay">
+          <div className="modal-content complete-modal">
+            <div className="complete-modal-header">
+              <h2>Add Extra Items</h2>
+              <button className="close-btn" onClick={() => setShowExtraItemsModal(false)}>
+                <FiX size={20} />
+              </button>
+            </div>
+            <div className="complete-modal-body">
+              <p style={{ marginBottom: '15px', color: '#666' }}>Request client approval for additional items/services.</p>
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Description</label>
+                <input
+                  type="text"
+                  className="work-description-input"
+                  placeholder="e.g. Extra camera mount"
+                  value={extraItemDesc}
+                  onChange={(e) => setExtraItemDesc(e.target.value)}
+                />
+              </div>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>Quantity</label>
+                <input
+                  type="number"
+                  className="work-description-input"
+                  placeholder="e.g. 2"
+                  value={extraItemQty}
+                  onChange={(e) => setExtraItemQty(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="complete-modal-footer">
+              <button className="btn-modal btn-cancel" onClick={() => setShowExtraItemsModal(false)}>Cancel</button>
+              <button
+                className="btn-modal btn-submit"
+                onClick={submitExtraItems}
+                disabled={!extraItemDesc.trim() || !extraItemQty.trim()}
+              >
+                Send Request
               </button>
             </div>
           </div>
