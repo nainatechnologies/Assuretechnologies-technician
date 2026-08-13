@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
+import API from '../services/api';
+import { loginUser } from '../services/auth';
 import './Login.css';
 
 export default function Login() {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
 
@@ -20,18 +23,38 @@ export default function Login() {
     }
 
     setPasswordError('');
+    setLoading(true);
 
-    // Simulate login success with fake credentials
-    Swal.fire({
-      title: 'Success!',
-      text: 'You have successfully logged in as Technician.',
-      icon: 'success',
-      confirmButtonColor: '#4F46E5',
-    }).then(() => {
-      // In a real app, you would set auth context/tokens here
-      // Navigate to technician dashboard
-      navigate('/dashboard');
-    });
+    const payload = identifier.includes('@') 
+      ? { email: identifier, password } 
+      : { mobile: identifier, password };
+
+    API.post('/auth/technician/login', payload)
+      .then((res) => {
+        if (res.data.success) {
+          loginUser(res.data.data.user);
+          Swal.fire({
+            title: 'Success!',
+            text: 'You have successfully logged in as Technician.',
+            icon: 'success',
+            confirmButtonColor: '#4F46E5',
+            timer: 1500,
+            showConfirmButton: false
+          }).then(() => {
+            navigate('/dashboard');
+          });
+        }
+      })
+      .catch((err) => {
+        console.error('Login Error:', err);
+        Swal.fire({
+          title: 'Login Failed',
+          text: err.response?.data?.message || 'Invalid credentials',
+          icon: 'error',
+          confirmButtonColor: '#EF4444'
+        });
+      })
+      .finally(() => setLoading(false));
   };
 
   const handleForgotPassword = (e: React.MouseEvent) => {
@@ -91,8 +114,8 @@ export default function Login() {
           {passwordError && <div className="input-error">{passwordError}</div>}
 
           <div className="login-btn-wrapper">
-            <button type="submit" className="btn-primary">
-              Sign In
+            <button type="submit" className="btn-primary" disabled={loading}>
+              {loading ? 'Signing In...' : 'Sign In'}
             </button>
           </div>
           
