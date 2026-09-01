@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
+import API from '../services/api'; 
+import { loginUser } from '../services/auth';
 import './Login.css';
-import api from '../services/api';
 
 export default function Login() {
   const [step, setStep] = useState<'LOGIN' | 'SET_PASSWORD'>('LOGIN');
@@ -27,10 +28,8 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const response = await api.post('/auth/technician/login', {
-        email: identifier,
-        password: password
-      });
+      const payload = identifier.includes('@') ? { email: identifier, password } : { mobile: identifier, password };
+      const response = await API.post('/auth/technician/login', payload);
 
       if (response.data.success) {
         if (response.data.requiresPasswordChange) {
@@ -46,7 +45,7 @@ export default function Login() {
         }
 
         if (response.data.data?.user) {
-          localStorage.setItem('user', JSON.stringify(response.data.data.user));
+          loginUser(response.data.data.user);
         }
         
         Swal.fire({
@@ -94,16 +93,14 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const response = await api.post('/auth/technician/set-password', {
-        email: identifier,
-        old_password: password,
-        new_password: newPassword,
-        confirm_password: confirmPassword
-      });
+      const payload = identifier.includes('@') 
+        ? { email: identifier, old_password: password, new_password: newPassword, confirm_password: confirmPassword }
+        : { mobile: identifier, old_password: password, new_password: newPassword, confirm_password: confirmPassword };
+      const response = await API.post('/auth/technician/set-password', payload);
 
       if (response.data.success) {
         if (response.data.data?.user) {
-          localStorage.setItem('user', JSON.stringify(response.data.data.user));
+          loginUser(response.data.data.user);
         }
 
         Swal.fire({
