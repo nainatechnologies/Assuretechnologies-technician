@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
-import API from '../services/api'; 
+import API from '../services/api';
 import { loginUser } from '../services/auth';
 import './Login.css';
+import api from '../services/api';
 
 export default function Login() {
   const [step, setStep] = useState<'LOGIN' | 'SET_PASSWORD'>('LOGIN');
@@ -28,8 +29,10 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const payload = identifier.includes('@') ? { email: identifier, password } : { mobile: identifier, password };
-      const response = await API.post('/auth/technician/login', payload);
+      const response = await api.post('/auth/technician/login', {
+        email: identifier,
+        password: password
+      });
 
       if (response.data.success) {
         if (response.data.requiresPasswordChange) {
@@ -45,9 +48,9 @@ export default function Login() {
         }
 
         if (response.data.data?.user) {
-          loginUser(response.data.data.user);
+          localStorage.setItem('user', JSON.stringify(response.data.data.user));
         }
-        
+
         Swal.fire({
           title: 'Success!',
           text: 'You have successfully logged in.',
@@ -93,14 +96,16 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const payload = identifier.includes('@') 
-        ? { email: identifier, old_password: password, new_password: newPassword, confirm_password: confirmPassword }
-        : { mobile: identifier, old_password: password, new_password: newPassword, confirm_password: confirmPassword };
-      const response = await API.post('/auth/technician/set-password', payload);
+      const response = await api.post('/auth/technician/set-password', {
+        email: identifier,
+        old_password: password,
+        new_password: newPassword,
+        confirm_password: confirmPassword
+      });
 
       if (response.data.success) {
         if (response.data.data?.user) {
-          loginUser(response.data.data.user);
+          localStorage.setItem('user', JSON.stringify(response.data.data.user));
         }
 
         Swal.fire({
@@ -144,7 +149,7 @@ export default function Login() {
       <div className="login-panel animate-fade-in">
         <div className="login-logo"></div>
         <h2 className="login-title">Technician Portal</h2>
-        
+
         {step === 'LOGIN' ? (
           <>
             <p className="login-subtitle">Sign in to manage your service requests</p>
@@ -243,17 +248,17 @@ export default function Login() {
               {passwordError && <div className="input-error" style={{ color: '#ef4444', fontSize: '13px', marginTop: '4px' }}>{passwordError}</div>}
 
               <div className="login-btn-wrapper" style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
-                <button 
-                  type="button" 
-                  className="btn-secondary" 
+                <button
+                  type="button"
+                  className="btn-secondary"
                   style={{ flex: '1', padding: '10px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: '6px', cursor: 'pointer' }}
                   onClick={() => { setStep('LOGIN'); setPasswordError(''); }}
                 >
                   Back
                 </button>
-                <button 
-                  type="submit" 
-                  className="btn-primary" 
+                <button
+                  type="submit"
+                  className="btn-primary"
                   style={{ flex: '2' }}
                   disabled={loading}
                 >

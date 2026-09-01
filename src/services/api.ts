@@ -1,27 +1,8 @@
-import axios from "axios";
-import { logoutUser } from "./auth";
+import axios from 'axios';
 
-export const BASE_URL = "http://localhost:5000";
-
-const API = axios.create({
-  baseURL: `${BASE_URL}/api`,
+const api = axios.create({
+  baseURL: 'http://localhost:5000/api',
   withCredentials: true,
 });
 
-API.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (
-      error.response &&
-      error.response.status === 401 &&
-      error.config &&
-      !error.config.url?.includes("/auth/")
-    ) {
-      logoutUser();
-      window.location.href = "/";
-    }
-    return Promise.reject(error);
-  }
-);
-
-export default API;
+export default api;
