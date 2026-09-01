@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import api from '../services/api';
 import {
   FiUser,
   FiInbox,
@@ -27,6 +28,7 @@ export type ProgressUpdate = {
 
 type Job = {
   id: string;
+  displayId: string;
   title: string;
   date: string;
   status: JobStatus;
@@ -42,53 +44,11 @@ type Job = {
   progressUpdates?: ProgressUpdate[];
 };
 
-const initialJobs: Job[] = [
-  { 
-    id: 'SR202607247190', 
-    title: 'agricture', 
-    date: '2026-07-24 | 2 PM - 4 PM', 
-    status: 'assigned',
-    user: { name: 'Sai Kumar', mobile: '+91 9876543210' },
-    location: { address: 'Flat 101, ABC Apt, Hyderabad, Telangana - 500001', lat: 17.432054, lng: 78.374383 },
-    progressUpdates: [
-      {
-        id: 'PRG_A1',
-        date: '2026-07-23 11:30:00',
-        description: 'Checked the soil quality and discussed the initial fertilizer plan with the owner.',
-        photos: []
-      }
-    ]
-  },
-  { 
-    id: 'SR202607247191', 
-    title: 'network', 
-    date: 'Started at: 2026-07-14 16:37:41', 
-    status: 'inProgress',
-    user: { name: 'Priya Sharma', mobile: '+91 9123456789' },
-    location: { address: 'H.No 45, Gachibowli, Hyderabad, Telangana - 500032', lat: 17.4401, lng: 78.3489 },
-    progressUpdates: [
-      {
-        id: 'PRG1',
-        date: '2026-07-15 10:00:00',
-        description: 'Installed the main router, testing signal strength across rooms.',
-        photos: ['https://placehold.co/150x150/e2e8f0/64748b?text=Progress+1'] // Added mock photo
-      }
-    ]
-  },
-  { 
-    id: 'SR202607247192', 
-    title: 'network', 
-    date: 'Started at: 2026-07-24 11:53:01', 
-    status: 'inProgress',
-    user: { name: 'Rahul Reddy', mobile: '+91 9988776655' },
-    location: { address: 'Plot 12, Jubilee Hills, Hyderabad, Telangana - 500033', lat: 17.4326, lng: 78.4071 }
-  }
-];
-
 export default function Dashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<JobStatus>('assigned');
-  const [jobs, setJobs] = useState<Job[]>(initialJobs);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(false);
 
   // Modals state
   const [showStartModal, setShowStartModal] = useState(false);
@@ -113,6 +73,69 @@ export default function Dashboard() {
   const [extraItemDesc, setExtraItemDesc] = useState('');
   const [extraItemQty, setExtraItemQty] = useState('');
 
+  const fetchJobs = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get('/technician/service-bookings');
+      if (response.data && response.data.success) {
+        const rawJobs = response.data.data || [];
+        const mappedJobs: Job[] = rawJobs.map((raw: any) => {
+          let mappedStatus: JobStatus = 'assigned';
+          if (raw.status === 'IN_PROGRESS') mappedStatus = 'inProgress';
+          else if (raw.status === 'AWAITING_APPROVAL') mappedStatus = 'awaiting';
+          else if (raw.status === 'COMPLETED') mappedStatus = 'completed';
+
+          let formattedAddress = 'Address not provided';
+          if (raw.address) {
+            try {
+              const parsed = typeof raw.address === 'string' ? JSON.parse(raw.address) : raw.address;
+              const parts = [parsed.line1, parsed.line2, parsed.city, parsed.state, parsed.country].filter(Boolean);
+              if (parts.length > 0) {
+                formattedAddress = parts.join(', ');
+              } else {
+                formattedAddress = typeof raw.address === 'string' ? raw.address : JSON.stringify(raw.address);
+              }
+            } catch (e) {
+              formattedAddress = raw.address;
+            }
+          }
+
+          return {
+            id: raw.id,
+            displayId: raw.display_id || raw.id,
+            title: raw.Service?.name || 'Service Booking',
+            date: raw.scheduled_date ? new Date(raw.scheduled_date).toLocaleString() : 'N/A',
+            status: mappedStatus,
+            user: {
+              name: raw.Order?.customer_name || 'Customer',
+              mobile: raw.Order?.customer_contact || 'N/A'
+            },
+            location: {
+              address: formattedAddress,
+              lat: Number(raw.lat) || 0,
+              lng: Number(raw.lng) || 0
+            },
+            progressUpdates: (raw.progress_updates || raw.JobProgresses || []).map((p: any) => ({
+              id: p.id,
+              date: p.createdAt ? new Date(p.createdAt).toLocaleString() : 'N/A',
+              description: p.description,
+              photos: p.photos || []
+            }))
+          };
+        });
+        setJobs(mappedJobs);
+      }
+    } catch (error) {
+      console.error('Failed to fetch jobs', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchJobs();
+  }, []);
+
   const handleStartWorkClick = (jobId: string) => {
     setSelectedJobId(jobId);
     setStartWorkPhotos([]);
@@ -120,24 +143,23 @@ export default function Dashboard() {
     setShowStartModal(true);
   };
 
-  const confirmStartWork = () => {
-    if (selectedJobId && startWorkPhotos.length >= 1) {
-      setJobs(jobs.map(job => {
-        if (job.id === selectedJobId) {
-          const now = new Date();
-          return {
-            ...job,
-            status: 'inProgress',
-            date: `Started at: ${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`
-          };
-        }
-        return job;
-      }));
-      setShowStartModal(false);
-      setSelectedJobId(null);
-      setStartWorkPhotos([]);
-      setStartWorkDescription('');
-      setActiveTab('inProgress'); // Automatically switch to "Work In Progress"
+  const confirmStartWork = async () => {
+    if (selectedJobId) {
+      try {
+        await api.patch(`/technician/service-bookings/${selectedJobId}/action`, {
+          action: 'START_WORK',
+          description: startWorkDescription || 'Technician started work'
+        });
+        setShowStartModal(false);
+        setSelectedJobId(null);
+        setStartWorkPhotos([]);
+        setStartWorkDescription('');
+        await fetchJobs();
+        setActiveTab('inProgress');
+      } catch (error: any) {
+        console.error('Start work failed', error);
+        alert(error.response?.data?.message || 'Failed to start work');
+      }
     }
   };
 
@@ -146,7 +168,6 @@ export default function Dashboard() {
       const filesArray = Array.from(e.target.files);
       const remainingSlots = 3 - startWorkPhotos.length;
       const filesToProcess = filesArray.slice(0, remainingSlots);
-
       const newPhotos = filesToProcess.map(file => URL.createObjectURL(file));
       setStartWorkPhotos(prev => [...prev, ...newPhotos]);
     }
@@ -163,19 +184,23 @@ export default function Dashboard() {
     setShowCompleteModal(true);
   };
 
-  const submitCompleteWork = () => {
-    if (selectedJobId && completeWorkPhotos.length >= 1) {
-      setJobs(jobs.map(job => {
-        if (job.id === selectedJobId) {
-          return { ...job, status: 'awaiting' };
-        }
-        return job;
-      }));
-      setShowCompleteModal(false);
-      setSelectedJobId(null);
-      setWorkDescription('');
-      setCompleteWorkPhotos([]);
-      setActiveTab('awaiting'); // Switch to awaiting approval
+  const submitCompleteWork = async () => {
+    if (selectedJobId) {
+      try {
+        await api.patch(`/technician/service-bookings/${selectedJobId}/action`, {
+          action: 'COMPLETE_WORK',
+          description: workDescription || 'Technician marked work as completed'
+        });
+        setShowCompleteModal(false);
+        setSelectedJobId(null);
+        setWorkDescription('');
+        setCompleteWorkPhotos([]);
+        await fetchJobs();
+        setActiveTab('awaiting');
+      } catch (error: any) {
+        console.error('Complete work failed', error);
+        alert(error.response?.data?.message || 'Failed to complete work');
+      }
     }
   };
 
@@ -184,7 +209,6 @@ export default function Dashboard() {
       const filesArray = Array.from(e.target.files);
       const remainingSlots = 3 - completeWorkPhotos.length;
       const filesToProcess = filesArray.slice(0, remainingSlots);
-
       const newPhotos = filesToProcess.map(file => URL.createObjectURL(file));
       setCompleteWorkPhotos(prev => [...prev, ...newPhotos]);
     }
@@ -206,44 +230,46 @@ export default function Dashboard() {
     setShowExtraItemsModal(true);
   };
 
-  const submitProgressUpdate = () => {
-    if (selectedJobId && progressDescription && progressPhotos.length >= 1) {
-      setJobs(jobs.map(job => {
-        if (job.id === selectedJobId) {
-          const now = new Date();
-          const newProgress: ProgressUpdate = {
-            id: `PRG_${Date.now()}`,
-            date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`,
-            description: progressDescription,
-            photos: progressPhotos
-          };
-          return {
-            ...job,
-            progressUpdates: [...(job.progressUpdates || []), newProgress]
-          };
-        }
-        return job;
-      }));
-      setShowProgressModal(false);
-      setSelectedJobId(null);
-      setProgressDescription('');
-      setProgressPhotos([]);
+  const submitProgressUpdate = async () => {
+    if (selectedJobId && progressDescription) {
+      try {
+        await api.patch(`/technician/service-bookings/${selectedJobId}/action`, {
+          action: 'ADD_PROGRESS',
+          description: progressDescription
+        });
+        setShowProgressModal(false);
+        setSelectedJobId(null);
+        setProgressDescription('');
+        setProgressPhotos([]);
+        await fetchJobs();
+      } catch (error: any) {
+        console.error('Add progress failed', error);
+        alert(error.response?.data?.message || 'Failed to add progress update');
+      }
     }
   };
 
-  const submitProgress = () => {
-    alert(`Progress added for job ${selectedJobId}`);
-    setShowProgressModal(false);
-    setProgressDescription('');
-    setProgressPhotos([]);
-  };
-
-  const submitExtraItems = () => {
-    if (extraItemDesc.trim() && extraItemQty.trim()) {
-      alert(`Extra items requested for job ${selectedJobId}`);
-      setShowExtraItemsModal(false);
-      setExtraItemDesc('');
-      setExtraItemQty('');
+  const submitExtraItems = async () => {
+    if (selectedJobId && extraItemDesc.trim() && extraItemQty.trim()) {
+      try {
+        await api.patch(`/technician/service-bookings/${selectedJobId}/action`, {
+          action: 'REQUEST_EXTRA_ITEMS',
+          extraItems: [
+            {
+              description: extraItemDesc.trim(),
+              qty: Number(extraItemQty)
+            }
+          ]
+        });
+        alert('Extra items requested successfully!');
+        setShowExtraItemsModal(false);
+        setExtraItemDesc('');
+        setExtraItemQty('');
+        await fetchJobs();
+      } catch (error: any) {
+        console.error('Extra items request failed', error);
+        alert(error.response?.data?.message || 'Failed to request extra items');
+      }
     }
   };
 
@@ -257,7 +283,6 @@ export default function Dashboard() {
       const filesArray = Array.from(e.target.files);
       const remainingSlots = 3 - progressPhotos.length;
       const filesToProcess = filesArray.slice(0, remainingSlots);
-
       const newPhotos = filesToProcess.map(file => URL.createObjectURL(file));
       setProgressPhotos(prev => [...prev, ...newPhotos]);
     }
@@ -269,6 +294,10 @@ export default function Dashboard() {
 
   const renderJobs = () => {
     const filteredJobs = jobs.filter(job => job.status === activeTab);
+
+    if (loading) {
+      return <div className="empty-state">Loading jobs...</div>;
+    }
 
     if (filteredJobs.length === 0) {
       const messages = {
@@ -284,7 +313,7 @@ export default function Dashboard() {
       <div key={job.id} className="job-card">
         <div className="job-card-header">
           <h3 className="job-title">{job.title}</h3>
-          {job.status === 'assigned' && <span className="job-id">{job.id}</span>}
+          {job.status === 'assigned' && <span className="job-id">{job.displayId || job.id}</span>}
         </div>
         <div className="job-details">
           <p className="job-date">{job.date}</p>
@@ -373,7 +402,7 @@ export default function Dashboard() {
 
               <div className="photo-upload-section" style={{ marginTop: '20px' }}>
                 <p className="upload-instruction" style={{ textAlign: 'center', marginBottom: '15px' }}>
-                  Please upload 1-3 photos to start work.
+                  Please upload 1-3 photos to start work (optional).
                 </p>
 
                 <div className="photo-previews" style={{ justifyContent: 'center' }}>
@@ -409,7 +438,6 @@ export default function Dashboard() {
               <button
                 className="btn-modal btn-submit"
                 onClick={confirmStartWork}
-                disabled={startWorkPhotos.length === 0}
               >
                 Submit
               </button>
@@ -522,7 +550,7 @@ export default function Dashboard() {
               <button 
                 className="btn-modal btn-submit"
                 onClick={submitProgressUpdate}
-                disabled={!progressDescription || progressPhotos.length === 0}
+                disabled={!progressDescription.trim()}
               >
                 Submit Progress
               </button>
@@ -552,7 +580,7 @@ export default function Dashboard() {
               ></textarea>
 
               <div className="photo-upload-section">
-                <p className="upload-instruction">Please upload 1-3 completion photos.</p>
+                <p className="upload-instruction">Please upload 1-3 completion photos (optional).</p>
 
                 <div className="photo-previews">
                   {completeWorkPhotos.map((photo, index) => (
@@ -587,7 +615,6 @@ export default function Dashboard() {
               <button
                 className="btn-modal btn-submit"
                 onClick={submitCompleteWork}
-                disabled={completeWorkPhotos.length === 0}
               >
                 Submit
               </button>
@@ -720,13 +747,6 @@ export default function Dashboard() {
           <FiBriefcase size={24} />
           <span>Jobs</span>
         </button>
-        {/* <button
-          className={`nav-item ${activeTab === 'inProgress' ? 'active' : ''}`}
-          onClick={() => setActiveTab('inProgress')}
-        >
-          <FiTool size={24} />
-          <span>In Progress</span>
-        </button> */}
         <button className="nav-item" onClick={() => navigate('/')}>
           <FiLogOut size={24} />
           <span>Logout</span>
