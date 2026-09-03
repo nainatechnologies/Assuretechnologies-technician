@@ -42,6 +42,7 @@ type Job = {
     lng: number;
   };
   progressUpdates?: ProgressUpdate[];
+  extraItems?: ExtraItem[];
 };
 
 export default function Dashboard() {
@@ -54,11 +55,13 @@ export default function Dashboard() {
   const [showStartModal, setShowStartModal] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [startWorkPhotos, setStartWorkPhotos] = useState<string[]>([]);
+  const [startWorkFiles, setStartWorkFiles] = useState<File[]>([]);
   const [startWorkDescription, setStartWorkDescription] = useState('');
 
   const [showCompleteModal, setShowCompleteModal] = useState(false);
   const [workDescription, setWorkDescription] = useState('');
   const [completeWorkPhotos, setCompleteWorkPhotos] = useState<string[]>([]);
+  const [completeWorkFiles, setCompleteWorkFiles] = useState<File[]>([]);
 
   // Daily Progress state
   const [showProgressModal, setShowProgressModal] = useState(false);
@@ -146,13 +149,16 @@ export default function Dashboard() {
   const confirmStartWork = async () => {
     if (selectedJobId) {
       try {
-        await api.patch(`/technician/service-bookings/${selectedJobId}/action`, {
-          action: 'START_WORK',
-          description: startWorkDescription || 'Technician started work'
-        });
+        const formData = new FormData();
+        formData.append('action', 'START_WORK');
+        if (startWorkDescription) formData.append('description', startWorkDescription);
+        startWorkFiles.forEach(file => formData.append('photos', file));
+
+        await api.patch(`/technician/service-bookings/${selectedJobId}/action`, formData);
         setShowStartModal(false);
         setSelectedJobId(null);
         setStartWorkPhotos([]);
+        setStartWorkFiles([]);
         setStartWorkDescription('');
         await fetchJobs();
         setActiveTab('inProgress');
@@ -168,6 +174,8 @@ export default function Dashboard() {
       const filesArray = Array.from(e.target.files);
       const remainingSlots = 3 - startWorkPhotos.length;
       const filesToProcess = filesArray.slice(0, remainingSlots);
+
+      setStartWorkFiles(prev => [...prev, ...filesToProcess]);
       const newPhotos = filesToProcess.map(file => URL.createObjectURL(file));
       setStartWorkPhotos(prev => [...prev, ...newPhotos]);
     }
@@ -175,6 +183,7 @@ export default function Dashboard() {
 
   const removePhoto = (index: number) => {
     setStartWorkPhotos(prev => prev.filter((_, i) => i !== index));
+    setStartWorkFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleCompleteWorkClick = (id: string) => {
@@ -187,14 +196,17 @@ export default function Dashboard() {
   const submitCompleteWork = async () => {
     if (selectedJobId) {
       try {
-        await api.patch(`/technician/service-bookings/${selectedJobId}/action`, {
-          action: 'COMPLETE_WORK',
-          description: workDescription || 'Technician marked work as completed'
-        });
+        const formData = new FormData();
+        formData.append('action', 'COMPLETE_WORK');
+        if (workDescription) formData.append('description', workDescription);
+        completeWorkFiles.forEach(file => formData.append('photos', file));
+
+        await api.patch(`/technician/service-bookings/${selectedJobId}/action`, formData);
         setShowCompleteModal(false);
         setSelectedJobId(null);
         setWorkDescription('');
         setCompleteWorkPhotos([]);
+        setCompleteWorkFiles([]);
         await fetchJobs();
         setActiveTab('awaiting');
       } catch (error: any) {
@@ -209,6 +221,8 @@ export default function Dashboard() {
       const filesArray = Array.from(e.target.files);
       const remainingSlots = 3 - completeWorkPhotos.length;
       const filesToProcess = filesArray.slice(0, remainingSlots);
+
+      setCompleteWorkFiles(prev => [...prev, ...filesToProcess]);
       const newPhotos = filesToProcess.map(file => URL.createObjectURL(file));
       setCompleteWorkPhotos(prev => [...prev, ...newPhotos]);
     }
@@ -216,6 +230,7 @@ export default function Dashboard() {
 
   const removeCompletePhoto = (index: number) => {
     setCompleteWorkPhotos(prev => prev.filter((_, i) => i !== index));
+    setCompleteWorkFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleAddProgressClick = (id: string) => {
@@ -344,6 +359,36 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+
+        {job.extraItems && job.extraItems.length > 0 && (
+          <div style={{ marginTop: '12px', marginBottom: '12px', padding: '10px 14px', borderRadius: '8px', backgroundColor: '#f8fafc', border: '1px solid #e2e8f0' }}>
+            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>
+              Requested Extra Items:
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {job.extraItems.map((item) => (
+                <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}>
+                  <span style={{ color: '#1e293b', fontWeight: 500 }}>{item.description} (Qty: {item.qty})</span>
+                  {item.status === 'APPROVED' && (
+                    <span style={{ backgroundColor: '#dcfce7', color: '#15803d', padding: '2px 8px', borderRadius: '12px', fontWeight: 600, fontSize: '0.75rem' }}>
+                      ? Approved by Customer
+                    </span>
+                  )}
+                  {item.status === 'REJECTED' && (
+                    <span style={{ backgroundColor: '#fee2e2', color: '#b91c1c', padding: '2px 8px', borderRadius: '12px', fontWeight: 600, fontSize: '0.75rem' }}>
+                      ? Declined by Customer
+                    </span>
+                  )}
+                  {item.status === 'PENDING' && (
+                    <span style={{ backgroundColor: '#fef3c7', color: '#b45309', padding: '2px 8px', borderRadius: '12px', fontWeight: 600, fontSize: '0.75rem' }}>
+                      ? Pending Decision
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="job-actions">
           {(job.status === 'assigned' || job.status === 'inProgress') && job.progressUpdates && job.progressUpdates.length > 0 && (
             <button 
@@ -369,6 +414,16 @@ export default function Dashboard() {
   };
 
   const getJobCount = (status: JobStatus) => jobs.filter(job => job.status === status).length;
+
+    const handleLogout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch (e) {
+      console.error('Logout error:', e);
+    }
+    localStorage.removeItem('user');
+    navigate('/');
+  };
 
   return (
     <div className="dashboard-container">
@@ -747,7 +802,7 @@ export default function Dashboard() {
           <FiBriefcase size={24} />
           <span>Jobs</span>
         </button>
-        <button className="nav-item" onClick={() => navigate('/')}>
+        <button className="nav-item" onClick={handleLogout}>
           <FiLogOut size={24} />
           <span>Logout</span>
         </button>

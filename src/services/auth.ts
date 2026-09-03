@@ -1,5 +1,7 @@
+import api from './api';
+
 export interface AuthUser {
-  id: number;
+  id: number | string;
   email?: string;
   role: string;
   full_name?: string;
@@ -10,8 +12,14 @@ export const loginUser = (user: AuthUser) => {
   localStorage.setItem("user", JSON.stringify(user));
 };
 
-export const logoutUser = () => {
-  localStorage.removeItem("user");
+export const logoutUser = async () => {
+  try {
+    await api.post('/auth/logout');
+  } catch (error) {
+    console.error('Logout API error:', error);
+  } finally {
+    localStorage.removeItem("user");
+  }
 };
 
 export const isAuthenticated = (): boolean => {
