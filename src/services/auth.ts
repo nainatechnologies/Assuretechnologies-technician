@@ -35,3 +35,14 @@ export const getCurrentUser = (): AuthUser | null => {
     return null;
   }
 };
+
+export const requestPasswordResetOtp = async (mobile: string) => {
+  const response = await api.post('/auth/technician/forgot-password', { mobile });
+  return response.data;
+};
+
+export const resetPassword = async (payload: any) => {
+  const response = await api.post('/auth/technician/reset-password', payload);
+  return response.data;
+};
+

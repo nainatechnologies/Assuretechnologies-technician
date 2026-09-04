@@ -29,10 +29,9 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const response = await api.post('/auth/technician/login', {
-        email: identifier,
-        password: password
-      });
+      const isMobile = /^\d+$/.test(identifier);
+        const payload = isMobile ? { mobile: identifier, password: password } : { email: identifier, password: password };
+        const response = await api.post('/auth/technician/login', payload);
 
       if (response.data.success) {
         if (response.data.requiresPasswordChange) {
@@ -96,12 +95,9 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const response = await api.post('/auth/technician/set-password', {
-        email: identifier,
-        old_password: password,
-        new_password: newPassword,
-        confirm_password: confirmPassword
-      });
+      const isMobile = /^\d+$/.test(identifier);
+        const payload = isMobile ? { mobile: identifier, old_password: password, new_password: newPassword, confirm_password: confirmPassword } : { email: identifier, old_password: password, new_password: newPassword, confirm_password: confirmPassword };
+        const response = await api.post('/auth/technician/set-password', payload);
 
       if (response.data.success) {
         if (response.data.data?.user) {
@@ -170,7 +166,7 @@ export default function Login() {
               <div className="input-group">
                 <div className="password-header">
                   <label className="input-label" htmlFor="password">Password</label>
-                  <a href="#" className="forgot-password" onClick={handleForgotPassword}>
+                  <a href="#" className="forgot-password" onClick={(e) => { e.preventDefault(); navigate('/forgot-password'); }}>
                     Forgot password?
                   </a>
                 </div>
@@ -272,3 +268,8 @@ export default function Login() {
     </div>
   );
 }
+
+
+
+
+
