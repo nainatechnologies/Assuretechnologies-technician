@@ -26,6 +26,13 @@ export type ProgressUpdate = {
   photos: string[];
 };
 
+export type ExtraItem = {
+  id: string;
+  description: string;
+  qty: number;
+  status: string;
+};
+
 type Job = {
   id: string;
   displayId: string;
@@ -75,12 +82,17 @@ export default function Dashboard() {
   const [showExtraItemsModal, setShowExtraItemsModal] = useState(false);
   const [extraItemDesc, setExtraItemDesc] = useState('');
   const [extraItemQty, setExtraItemQty] = useState('');
+  const [isOnline, setIsOnline] = useState(false);
+  const [togglingDuty, setTogglingDuty] = useState(false);
 
   const fetchJobs = async () => {
     try {
       setLoading(true);
       const response = await api.get('/technician/service-bookings');
       if (response.data && response.data.success) {
+        if (response.data.is_online !== undefined) {
+          setIsOnline(Boolean(response.data.is_online));
+        }
         const rawJobs = response.data.data || [];
         const mappedJobs: Job[] = rawJobs.map((raw: any) => {
           let mappedStatus: JobStatus = 'assigned';
@@ -123,6 +135,12 @@ export default function Dashboard() {
               date: p.createdAt ? new Date(p.createdAt).toLocaleString() : 'N/A',
               description: p.description,
               photos: p.photos || []
+            })),
+            extraItems: (raw.extra_items || raw.extraItems || raw.ExtraItemsRequests || []).map((e: any) => ({
+              id: String(e.id),
+              description: e.description,
+              qty: Number(e.qty) || 1,
+              status: e.status || 'PENDING'
             }))
           };
         });
@@ -138,6 +156,21 @@ export default function Dashboard() {
   useEffect(() => {
     fetchJobs();
   }, []);
+
+  const handleToggleDuty = async () => {
+    try {
+      setTogglingDuty(true);
+      const nextStatus = !isOnline;
+      const res = await api.patch('/duty-status', { is_online: nextStatus });
+      if (res.data && res.data.success) {
+        setIsOnline(Boolean(res.data.data.is_online));
+      }
+    } catch (e) {
+      console.error('Duty toggle error:', e);
+    } finally {
+      setTogglingDuty(false);
+    }
+  };
 
   const handleStartWorkClick = (jobId: string) => {
     setSelectedJobId(jobId);
@@ -155,6 +188,7 @@ export default function Dashboard() {
         startWorkFiles.forEach(file => formData.append('photos', file));
 
         await api.patch(`/technician/service-bookings/${selectedJobId}/action`, formData);
+        setIsOnline(true);
         setShowStartModal(false);
         setSelectedJobId(null);
         setStartWorkPhotos([]);
@@ -430,9 +464,40 @@ export default function Dashboard() {
       {/* Top Header */}
       <header className="dashboard-header">
         <h1>Technician Dashboard</h1>
-        <button className="profile-btn">
-          <FiUser size={24} />
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button
+            onClick={handleToggleDuty}
+            disabled={togglingDuty}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              borderRadius: '20px',
+              border: isOnline ? '1px solid #10b981' : '1px solid rgba(255,255,255,0.4)',
+              backgroundColor: isOnline ? '#10b981' : 'rgba(255,255,255,0.15)',
+              color: '#ffffff',
+              fontWeight: 600,
+              fontSize: '0.85rem',
+              cursor: togglingDuty ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+            title={isOnline ? 'You are ON duty (Receiving new job assignments)' : 'You are OFF duty (Hidden from new job assignments)'}
+          >
+            <span
+              style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                backgroundColor: isOnline ? '#ffffff' : 'rgba(255,255,255,0.6)'
+              }}
+            />
+            {togglingDuty ? 'Updating...' : isOnline ? 'Duty ON' : 'Duty OFF'}
+          </button>
+          <button className="profile-btn">
+            <FiUser size={24} />
+          </button>
+        </div>
       </header>
 
       {/* Modals */}
