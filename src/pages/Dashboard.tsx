@@ -15,7 +15,16 @@ import {
   FiMapPin,
   FiPhone
 } from 'react-icons/fi';
+import Swal from 'sweetalert2';
 import './Dashboard.css';
+
+const Toast = Swal.mixin({
+  toast: true,
+  position: 'top-end',
+  showConfirmButton: false,
+  timer: 3000,
+  timerProgressBar: true,
+});
 
 type JobStatus = 'assigned' | 'inProgress' | 'awaiting' | 'completed';
 
@@ -197,8 +206,8 @@ export default function Dashboard() {
         await fetchJobs();
         setActiveTab('inProgress');
       } catch (error: any) {
-        console.error('Start work failed', error);
-        alert(error.response?.data?.message || 'Failed to start work');
+        console.error('Failed to start work', error);
+        Toast.fire({ icon: 'error', title: error.response?.data?.message || 'Failed to start work' });
       }
     }
   };
@@ -244,8 +253,8 @@ export default function Dashboard() {
         await fetchJobs();
         setActiveTab('awaiting');
       } catch (error: any) {
-        console.error('Complete work failed', error);
-        alert(error.response?.data?.message || 'Failed to complete work');
+        console.error('Failed to complete work', error);
+        Toast.fire({ icon: 'error', title: error.response?.data?.message || 'Failed to complete work' });
       }
     }
   };
@@ -292,8 +301,8 @@ export default function Dashboard() {
         setProgressPhotos([]);
         await fetchJobs();
       } catch (error: any) {
-        console.error('Add progress failed', error);
-        alert(error.response?.data?.message || 'Failed to add progress update');
+        console.error('Failed to add progress update', error);
+        Toast.fire({ icon: 'error', title: error.response?.data?.message || 'Failed to add progress update' });
       }
     }
   };
@@ -310,14 +319,14 @@ export default function Dashboard() {
             }
           ]
         });
-        alert('Extra items requested successfully!');
+        Toast.fire({ icon: 'success', title: 'Extra items requested successfully!' });
         setShowExtraItemsModal(false);
         setExtraItemDesc('');
         setExtraItemQty('');
         await fetchJobs();
       } catch (error: any) {
         console.error('Extra items request failed', error);
-        alert(error.response?.data?.message || 'Failed to request extra items');
+        Toast.fire({ icon: 'error', title: error.response?.data?.message || 'Failed to request extra items' });
       }
     }
   };
