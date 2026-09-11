@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
-import API from '../services/api';
-import { loginUser } from '../services/auth';
-import './Login.css';
+import { FiEye, FiEyeOff } from 'react-icons/fi';
 import api from '../services/api';
+import './Login.css';
 
 export default function Login() {
   const [step, setStep] = useState<'LOGIN' | 'SET_PASSWORD'>('LOGIN');
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [newPassword, setNewPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -30,8 +32,8 @@ export default function Login() {
 
     try {
       const isMobile = /^\d+$/.test(identifier);
-        const payload = isMobile ? { mobile: identifier, password: password } : { email: identifier, password: password };
-        const response = await api.post('/auth/technician/login', payload);
+      const payload = isMobile ? { mobile: identifier, password: password } : { email: identifier, password: password };
+      const response = await api.post('/auth/technician/login', payload);
 
       if (response.data.success) {
         if (response.data.requiresPasswordChange) {
@@ -96,8 +98,8 @@ export default function Login() {
 
     try {
       const isMobile = /^\d+$/.test(identifier);
-        const payload = isMobile ? { mobile: identifier, old_password: password, new_password: newPassword, confirm_password: confirmPassword } : { email: identifier, old_password: password, new_password: newPassword, confirm_password: confirmPassword };
-        const response = await api.post('/auth/technician/set-password', payload);
+      const payload = isMobile ? { mobile: identifier, old_password: password, new_password: newPassword, confirm_password: confirmPassword } : { email: identifier, old_password: password, new_password: newPassword, confirm_password: confirmPassword };
+      const response = await api.post('/auth/technician/set-password', payload);
 
       if (response.data.success) {
         if (response.data.data?.user) {
@@ -125,19 +127,6 @@ export default function Login() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleForgotPassword = (e: React.MouseEvent) => {
-    e.preventDefault();
-    Swal.fire({
-      title: 'Reset Password',
-      text: 'Instructions to reset your password will be sent to your email or mobile.',
-      input: 'text',
-      inputPlaceholder: 'Enter your email or mobile number',
-      showCancelButton: true,
-      confirmButtonText: 'Send Reset Link',
-      confirmButtonColor: '#4F46E5',
-    });
   };
 
   return (
@@ -170,18 +159,29 @@ export default function Login() {
                     Forgot password?
                   </a>
                 </div>
-                <input
-                  type="password"
-                  id="password"
-                  className="input-field"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    if (e.target.value.length >= 6) setPasswordError('');
-                  }}
-                  required
-                />
+                <div className="password-input-wrapper">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    id="password"
+                    className="input-field"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      if (e.target.value.length >= 6) setPasswordError('');
+                    }}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle-btn"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    title={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                  </button>
+                </div>
               </div>
               {passwordError && <div className="input-error" style={{ color: '#ef4444', fontSize: '13px', marginTop: '4px' }}>{passwordError}</div>}
 
@@ -211,35 +211,57 @@ export default function Login() {
 
               <div className="input-group">
                 <label className="input-label" htmlFor="newPassword">New Password</label>
-                <input
-                  type="password"
-                  id="newPassword"
-                  className="input-field"
-                  placeholder="Min. 8 chars (uppercase, number, symbol)"
-                  value={newPassword}
-                  onChange={(e) => {
-                    setNewPassword(e.target.value);
-                    if (e.target.value.length >= 8) setPasswordError('');
-                  }}
-                  required
-                  autoFocus
-                />
+                <div className="password-input-wrapper">
+                  <input
+                    type={showNewPassword ? 'text' : 'password'}
+                    id="newPassword"
+                    className="input-field"
+                    placeholder="Min. 8 chars (uppercase, number, symbol)"
+                    value={newPassword}
+                    onChange={(e) => {
+                      setNewPassword(e.target.value);
+                      if (e.target.value.length >= 8) setPasswordError('');
+                    }}
+                    required
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle-btn"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                    title={showNewPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showNewPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                  </button>
+                </div>
               </div>
 
               <div className="input-group">
                 <label className="input-label" htmlFor="confirmPassword">Confirm New Password</label>
-                <input
-                  type="password"
-                  id="confirmPassword"
-                  className="input-field"
-                  placeholder="Re-enter new password"
-                  value={confirmPassword}
-                  onChange={(e) => {
-                    setConfirmPassword(e.target.value);
-                    if (e.target.value === newPassword) setPasswordError('');
-                  }}
-                  required
-                />
+                <div className="password-input-wrapper">
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    id="confirmPassword"
+                    className="input-field"
+                    placeholder="Re-enter new password"
+                    value={confirmPassword}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value);
+                      if (e.target.value === newPassword) setPasswordError('');
+                    }}
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="password-toggle-btn"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                    title={showConfirmPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showConfirmPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                  </button>
+                </div>
               </div>
               {passwordError && <div className="input-error" style={{ color: '#ef4444', fontSize: '13px', marginTop: '4px' }}>{passwordError}</div>}
 
@@ -268,8 +290,3 @@ export default function Login() {
     </div>
   );
 }
-
-
-
-
-

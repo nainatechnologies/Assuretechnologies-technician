@@ -124,11 +124,22 @@ export default function Dashboard() {
             }
           }
 
+          const formattedDate = raw.scheduled_date
+            ? new Date(raw.scheduled_date).toLocaleDateString('en-GB')
+            : 'N/A';
+          const timeSlot = raw.scheduled_time_slot
+            || raw.metadata?.scheduled_time_slot
+            || raw.metadata?.time_slot
+            || (raw.scheduled_date && !String(raw.scheduled_date).includes('T00:00:00')
+                ? new Date(raw.scheduled_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                : '');
+          const displayDate = timeSlot ? `${formattedDate}, ${timeSlot}` : formattedDate;
+
           return {
             id: raw.id,
             displayId: raw.display_id || raw.id,
             title: raw.Service?.name || 'Service Booking',
-            date: raw.scheduled_date ? new Date(raw.scheduled_date).toLocaleString() : 'N/A',
+            date: displayDate,
             status: mappedStatus,
             user: {
               name: raw.Order?.customer_name || 'Customer',
