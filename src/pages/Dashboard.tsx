@@ -83,6 +83,7 @@ export default function Dashboard() {
   const [showProgressModal, setShowProgressModal] = useState(false);
   const [progressDescription, setProgressDescription] = useState('');
   const [progressPhotos, setProgressPhotos] = useState<string[]>([]);
+  const [progressFiles, setProgressFiles] = useState<File[]>([]);
 
   // Previous Progress state
   const [showPreviousProgressModal, setShowPreviousProgressModal] = useState(false);
@@ -291,7 +292,16 @@ export default function Dashboard() {
     setSelectedJobId(id);
     setProgressDescription('');
     setProgressPhotos([]);
+    setProgressFiles([]);
     setShowProgressModal(true);
+  };
+
+  const handleCloseProgressModal = () => {
+    setShowProgressModal(false);
+    setSelectedJobId(null);
+    setProgressDescription('');
+    setProgressPhotos([]);
+    setProgressFiles([]);
   };
 
   const handleAddExtraItemsClick = (id: string) => {
@@ -302,15 +312,15 @@ export default function Dashboard() {
   const submitProgressUpdate = async () => {
     if (selectedJobId && progressDescription) {
       try {
-        await api.patch(`/technician/service-bookings/${selectedJobId}/action`, {
-          action: 'ADD_PROGRESS',
-          description: progressDescription
-        });
-        setShowProgressModal(false);
-        setSelectedJobId(null);
-        setProgressDescription('');
-        setProgressPhotos([]);
+        const formData = new FormData();
+        formData.append('action', 'ADD_PROGRESS');
+        formData.append('description', progressDescription);
+        progressFiles.forEach(file => formData.append('photos', file));
+
+        await api.patch(`/technician/service-bookings/${selectedJobId}/action`, formData);
+        handleCloseProgressModal();
         await fetchJobs();
+        Toast.fire({ icon: 'success', title: 'Daily progress updated successfully!' });
       } catch (error: any) {
         console.error('Failed to add progress update', error);
         Toast.fire({ icon: 'error', title: error.response?.data?.message || 'Failed to add progress update' });
@@ -352,6 +362,8 @@ export default function Dashboard() {
       const filesArray = Array.from(e.target.files);
       const remainingSlots = 3 - progressPhotos.length;
       const filesToProcess = filesArray.slice(0, remainingSlots);
+
+      setProgressFiles(prev => [...prev, ...filesToProcess]);
       const newPhotos = filesToProcess.map(file => URL.createObjectURL(file));
       setProgressPhotos(prev => [...prev, ...newPhotos]);
     }
@@ -359,6 +371,7 @@ export default function Dashboard() {
 
   const removeProgressPhoto = (index: number) => {
     setProgressPhotos(prev => prev.filter((_, i) => i !== index));
+    setProgressFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   const renderJobs = () => {
@@ -382,7 +395,7 @@ export default function Dashboard() {
       <div key={job.id} className="job-card">
         <div className="job-card-header">
           <h3 className="job-title">{job.title}</h3>
-          {job.status === 'assigned' && <span className="job-id">{job.displayId || job.id}</span>}
+          {(job.displayId || job.id) && <span className="job-id">{job.displayId || job.id}</span>}
         </div>
         <div className="job-details">
           <p className="job-date">{job.date}</p>
@@ -639,7 +652,7 @@ export default function Dashboard() {
           <div className="modal-content complete-modal">
             <div className="complete-modal-header">
               <h2>Add Daily Progress</h2>
-              <button className="close-btn" onClick={() => setShowProgressModal(false)}>
+              <button className="close-btn" onClick={handleCloseProgressModal}>
                 <FiX size={20} />
               </button>
             </div>
@@ -673,6 +686,7 @@ export default function Dashboard() {
                         accept="image/*"
                         multiple
                         onChange={handleProgressPhotoUpload}
+                        onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
                         className="hidden-file-input"
                       />
                       <div className="upload-placeholder">
@@ -686,7 +700,7 @@ export default function Dashboard() {
             </div>
 
             <div className="complete-modal-footer">
-              <button className="btn-modal btn-cancel" onClick={() => setShowProgressModal(false)}>Cancel</button>
+              <button className="btn-modal btn-cancel" onClick={handleCloseProgressModal}>Cancel</button>
               <button 
                 className="btn-modal btn-submit"
                 onClick={submitProgressUpdate}
