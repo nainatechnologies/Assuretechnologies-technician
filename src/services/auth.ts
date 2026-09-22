@@ -19,6 +19,7 @@ export const logoutUser = async () => {
     console.error('Logout API error:', error);
   } finally {
     localStorage.removeItem("user");
+    localStorage.removeItem("technician_token");
   }
 };
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { FiEye, FiEyeOff } from 'react-icons/fi';
@@ -18,6 +18,14 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const token = localStorage.getItem('technician_token') || localStorage.getItem('authToken');
+    const user = localStorage.getItem('user');
+    if (token && user) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,6 +56,10 @@ export default function Login() {
           return;
         }
 
+        if (response.data.data?.token) {
+          localStorage.setItem('technician_token', response.data.data.token);
+          localStorage.setItem('authToken', response.data.data.token);
+        }
         if (response.data.data?.user) {
           localStorage.setItem('user', JSON.stringify(response.data.data.user));
         }
@@ -102,6 +114,10 @@ export default function Login() {
       const response = await api.post('/auth/technician/set-password', payload);
 
       if (response.data.success) {
+        if (response.data.data?.token) {
+          localStorage.setItem('technician_token', response.data.data.token);
+          localStorage.setItem('authToken', response.data.data.token);
+        }
         if (response.data.data?.user) {
           localStorage.setItem('user', JSON.stringify(response.data.data.user));
         }

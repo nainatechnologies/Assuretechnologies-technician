@@ -1,4 +1,41 @@
-import React, { useState, useEffect } from 'react';
+
+const playNotificationSound = () => {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+    const now = ctx.currentTime;
+
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(587.33, now); // D5
+    gain1.gain.setValueAtTime(0.2, now);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start(now);
+    osc1.stop(now + 0.3);
+
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(880, now + 0.12); // A5
+    gain2.gain.setValueAtTime(0.25, now + 0.12);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(now + 0.12);
+    osc2.stop(now + 0.55);
+  } catch (e) {
+    console.warn('Audio chime failed:', e);
+  }
+};
+
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import {
@@ -13,7 +50,8 @@ import {
   FiX,
   FiCamera,
   FiMapPin,
-  FiPhone
+  FiPhone,
+  FiRefreshCw
 } from 'react-icons/fi';
 import Swal from 'sweetalert2';
 import './Dashboard.css';
@@ -94,10 +132,14 @@ export default function Dashboard() {
   const [extraItemQty, setExtraItemQty] = useState('');
   const [isOnline, setIsOnline] = useState(false);
   const [togglingDuty, setTogglingDuty] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const knownAssignedIdsRef = useRef<Set<string> | null>(null);
 
-  const fetchJobs = async () => {
+  const fetchJobs = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) {
+        setIsRefreshing(true);
+      }
       const response = await api.get('/technician/service-bookings');
       if (response.data && response.data.success) {
         if (response.data.is_online !== undefined) {
@@ -165,17 +207,55 @@ export default function Dashboard() {
             }))
           };
         });
+        
+        const assignedJobs = mappedJobs.filter((j) => j.status === 'assigned');
+        if (knownAssignedIdsRef.current === null) {
+          knownAssignedIdsRef.current = new Set(assignedJobs.map((j) => j.id));
+        } else {
+          const newAssigned = assignedJobs.filter((j) => !knownAssignedIdsRef.current!.has(j.id));
+          if (newAssigned.length > 0) {
+            playNotificationSound();
+            if (typeof navigator !== 'undefined' && navigator.vibrate) {
+              try {
+                navigator.vibrate([200, 100, 200]);
+              } catch (e) {}
+            }
+            const title = newAssigned.length === 1 ? newAssigned[0].title : `${newAssigned.length} new jobs`;
+            Toast.fire({
+              icon: 'info',
+              title: `🚨 New Job Assigned: ${title}`,
+              timer: 6000,
+            });
+            setActiveTab('assigned');
+          }
+          knownAssignedIdsRef.current = new Set(assignedJobs.map((j) => j.id));
+        }
+
         setJobs(mappedJobs);
       }
     } catch (error) {
       console.error('Failed to fetch jobs', error);
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
   useEffect(() => {
+    const token = localStorage.getItem('technician_token') || localStorage.getItem('authToken');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
     fetchJobs();
+
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetchJobs(true);
+      }
+    }, 15000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const handleToggleDuty = async () => {
@@ -489,6 +569,7 @@ export default function Dashboard() {
       console.error('Logout error:', e);
     }
     localStorage.removeItem('user');
+    localStorage.removeItem('technician_token');
     navigate('/');
   };
 
@@ -498,6 +579,26 @@ export default function Dashboard() {
       <header className="dashboard-header">
         <h1>Technician Dashboard</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button
+            onClick={() => fetchJobs(false)}
+            disabled={isRefreshing}
+            style={{
+              background: 'rgba(255,255,255,0.15)',
+              border: '1px solid rgba(255,255,255,0.4)',
+              borderRadius: '50%',
+              width: '36px',
+              height: '36px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+              cursor: isRefreshing ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+            title="Refresh jobs"
+          >
+            <FiRefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+          </button>
           <button
             onClick={handleToggleDuty}
             disabled={togglingDuty}
