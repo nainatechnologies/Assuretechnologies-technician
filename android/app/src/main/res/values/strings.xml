@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Assure Technician</string>
+    <string name="title_activity_main">Assure Technician</string>
+    <string name="package_name">com.assuretechnologies.technician</string>
+    <string name="custom_url_scheme">com.assuretechnologies.technician</string>
+</resources>

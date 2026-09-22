@@ -1,13 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import API from '../services/api';
 import Swal from 'sweetalert2';
 import './Login.css'; 
 
-const API = axios.create({
-  baseURL: `http://localhost:5000/api`,
-  withCredentials: true,
-});
+// Using shared API instance with dynamic base URL
 
 export default function Register() {
   const navigate = useNavigate();

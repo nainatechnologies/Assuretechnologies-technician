@@ -22,3 +22,15 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Android Signing Keystores (CRITICAL: Never commit Play Store signing keys)
+*.jks
+*.keystore
+
+# Local Android SDK properties
+local.properties
+**/local.properties
+
+# Android crash logs
+hs_err_pid*.log
+replay_pid*.log
