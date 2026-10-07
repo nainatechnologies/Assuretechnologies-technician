@@ -9,6 +9,7 @@ Complete handbook for running **Assure Technician** as a native Android applicat
 | Command | Action |
 | :--- | :--- |
 | `npm run cap:build` | Builds Vite web assets and syncs them directly into Android native container. Run after every code edit. |
+| `npm run cap:apk` | Builds web assets, syncs to Android, and compiles debug APK via Gradle. |
 | `npm run cap:open` | Opens the `android/` project in Android Studio. |
 | `npx cap sync android` | Syncs web assets and native Gradle plugins. |
 | `npx cap run android` | Directly runs the app on a connected physical USB device or emulator. |
